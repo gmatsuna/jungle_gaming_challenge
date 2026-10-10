@@ -4,13 +4,17 @@ import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { Wager } from './wager/wager.entity';
+import { WalletSchema } from './infrastructure/database/schemas/wallet.schema';
+import { WagerTransactionSchema } from './infrastructure/database/schemas/wager-transaction.schema';
+import { WalletLedgerEntrySchema } from './infrastructure/database/schemas/wallet-ledger-entry.schema';
+import { OpenWalletUseCase } from './application/use-cases/open-wallet.use-case';
+import { ProcessWagerTransactionUseCase } from './application/use-cases/process-wager-transaction.use-case';
+import { WalletController } from './infrastructure/http/wallet.controller';
+import { WageringController } from './infrastructure/http/wagering.controller';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
     MikroOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -21,14 +25,13 @@ import { Wager } from './wager/wager.entity';
         user: configService.get<string>('DB_USER', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'postgrespassword'),
         dbName: configService.get<string>('DB_NAME', 'jungle_gaming_challenge_db'),
-        entities: [Wager],
+        entities: [WalletSchema, WagerTransactionSchema, WalletLedgerEntrySchema],
         debug: true,
-        ensureDatabase: true,
       }),
     }),
-    MikroOrmModule.forFeature([Wager]),
+    MikroOrmModule.forFeature([WalletSchema, WagerTransactionSchema, WalletLedgerEntrySchema]),
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, WalletController, WageringController],
+  providers: [AppService, OpenWalletUseCase, ProcessWagerTransactionUseCase],
 })
 export class AppModule {}
