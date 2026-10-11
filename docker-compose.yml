@@ -25,6 +25,17 @@ services:
     volumes:
       - localstack_data:/var/lib/localstack
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: jungle_gaming_challenge_keycloak
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    command: [ "start-dev" ]
+    ports:
+      - "8080:8080"
+    restart: always
+
 volumes:
   pgdata:
   localstack_data:

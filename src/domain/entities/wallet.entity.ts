@@ -19,7 +19,7 @@ export class Wallet {
   public readonly createdAt!: Date;
   private _updatedAt!: Date;
 
-  constructor(
+  private constructor(
     id?: string,
     playerId?: string,
     currency?: string,

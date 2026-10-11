@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { Wallet } from '../../domain/entities/wallet.entity';
+import { WalletLedgerEntry, LedgerDirection } from '../../domain/entities/wallet-ledger-entry.entity';
 import { Money } from '../../domain/value-objects/money.vo';
 
 @Injectable()
@@ -20,13 +21,32 @@ export class OpenWalletUseCase {
         throw new Error('WALLET_ALREADY_EXISTS');
       }
 
+      const walletId = crypto.randomUUID();
       const wallet = Wallet.open({
-        id: crypto.randomUUID(),
+        id: walletId,
         playerId: props.playerId,
         initialBalance: initialMoney,
       });
 
-      await em.persistAndFlush(wallet);
+      em.persist(wallet);
+
+      // Se houver saldo inicial maior que zero, criamos a entrada correspondente no ledger
+      if (initialMoney.amount > '0') {
+        const zeroBalance = Money.zero(initialMoney.currency);
+        const ledgerEntry = WalletLedgerEntry.create({
+          id: crypto.randomUUID(),
+          walletId: wallet.id,
+          transactionId: crypto.randomUUID(),
+          direction: LedgerDirection.Credit,
+          money: initialMoney,
+          balanceBefore: zeroBalance,
+          balanceAfter: initialMoney,
+        });
+
+        em.persist(ledgerEntry);
+      }
+
+      await em.flush();
 
       return {
         id: wallet.id,

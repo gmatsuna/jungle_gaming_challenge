@@ -4,6 +4,7 @@ import { createHash } from 'crypto';
 import { Wallet } from '../../domain/entities/wallet.entity';
 import { WagerTransaction, WagerTransactionKind, WagerTransactionStatus } from '../../domain/entities/wager-transaction.entity';
 import { WalletLedgerEntry, LedgerDirection } from '../../domain/entities/wallet-ledger-entry.entity';
+import { OutboxMessage } from '../../domain/entities/outbox-message.entity';
 import { Money } from '../../domain/value-objects/money.vo';
 import type { SubmitWagerTransactionDto } from '../dtos/submit-wager-transaction.dto';
 
@@ -86,6 +87,29 @@ export class ProcessWagerTransactionUseCase {
           }
         }
 
+        // Helper para criar a mensagem de Outbox atômica
+        const createOutboxEvent = (eventType: string) => {
+          return new OutboxMessage({
+            id: crypto.randomUUID(),
+            aggregateId: tx.id,
+            eventType,
+            payload: {
+              transactionId: tx.id,
+              providerId: tx.providerId,
+              externalTransactionId: tx.externalTransactionId,
+              walletId: tx.walletId,
+              playerId: tx.playerId,
+              roundId: tx.roundId,
+              gameId: tx.gameId,
+              kind: tx.kind,
+              money: money.toJSON(),
+              status: WagerTransactionStatus.Processed,
+              occurredAt: new Date(),
+            },
+            occurredAt: new Date(),
+          });
+        };
+
         // 5. Aplicar regras por TIPO de transação
         if (dto.kind === WagerTransactionKind.Bet) {
           wallet.debit(money);
@@ -102,7 +126,8 @@ export class ProcessWagerTransactionUseCase {
           });
 
           tx.markProcessed();
-          await em.persistAndFlush([tx, wallet, ledger]);
+          const outbox = createOutboxEvent('WagerBetProcessed');
+          await em.persistAndFlush([tx, wallet, ledger, outbox]);
         } else if (dto.kind === WagerTransactionKind.Win) {
           wallet.credit(money);
           const balanceAfter = wallet.balance;
@@ -118,10 +143,12 @@ export class ProcessWagerTransactionUseCase {
           });
 
           tx.markProcessed(referenceTx?.id);
-          await em.persistAndFlush([tx, wallet, ledger]);
+          const outbox = createOutboxEvent('WagerWinProcessed');
+          await em.persistAndFlush([tx, wallet, ledger, outbox]);
         } else if (dto.kind === WagerTransactionKind.Loss) {
           tx.markProcessed();
-          await em.persistAndFlush([tx]);
+          const outbox = createOutboxEvent('WagerLossProcessed');
+          await em.persistAndFlush([tx, outbox]);
         } else if (dto.kind === WagerTransactionKind.Refund) {
           wallet.credit(money);
           const balanceAfter = wallet.balance;
@@ -137,7 +164,37 @@ export class ProcessWagerTransactionUseCase {
           });
 
           tx.markProcessed(referenceTx?.id);
-          await em.persistAndFlush([tx, wallet, ledger]);
+          const outbox = createOutboxEvent('WagerRefundProcessed');
+          await em.persistAndFlush([tx, wallet, ledger, outbox]);
+        } else if (dto.kind === WagerTransactionKind.Rollback) {
+          // O Rollback inverte o efeito da transação referenciada
+          // Se a referência era um BET (débito), o rollback credita.
+          // Se a referência era um WIN ou REFUND (crédito), o rollback debita.
+          let direction: LedgerDirection;
+
+          if (referenceTx?.kind === WagerTransactionKind.Bet) {
+            wallet.credit(money);
+            direction = LedgerDirection.Credit;
+          } else {
+            wallet.debit(money);
+            direction = LedgerDirection.Debit;
+          }
+
+          const balanceAfter = wallet.balance;
+
+          const ledger = WalletLedgerEntry.create({
+            id: crypto.randomUUID(),
+            walletId: wallet.id,
+            transactionId: tx.id,
+            direction,
+            money,
+            balanceBefore,
+            balanceAfter,
+          });
+
+          tx.markProcessed(referenceTx?.id);
+          const outbox = createOutboxEvent('WagerRollbackProcessed');
+          await em.persistAndFlush([tx, wallet, ledger, outbox]);
         } else {
           throw new Error(`KIND_${dto.kind}_NOT_SUPPORTED_YET`);
         }
