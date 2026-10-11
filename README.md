@@ -22,10 +22,12 @@ Em razão de ter o conhecimento técnico ou pratico das Tecnologias aplicadas ao
 Certifique-se de configurar o arquivo `.env` na raiz do projeto:
 ```env
 PORT=3000
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/wagering_db
-AWS_REGION=us-east-1
-AWS_ENDPOINT=http://localhost:4566
-SQS_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/wager-transactions.fifo
+NODE_ENV=development
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=
+DB_NAME=
 ```
 
 ### 2. Subindo a Infraestrutura (PostgreSQL e LocalStack)
