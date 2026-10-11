@@ -2,7 +2,7 @@
 
 Sistema de alta confiabilidade financeira desenvolvido em **NestJS**, **Bun** e **PostgreSQL (MikroORM)**, projetado com arquitetura orientada ao eventos, garantia de atomicidade, processamento idempotente e mensageria distribuída via **AWS SQS / LocalStack**.
 
-Em razão de ter o conhecimento técnico ou pratico das Tecnologias aplicadas ao teste houve necessidade da utilização de inteligência artificial para chegar a solução da problemática proposta.
+Em razão de não ter o conhecimento técnico ou pratico das Tecnologias aplicadas ao teste houve a necessidade da utilização de inteligência artificial para chegar a solução da problemática proposta.
 
 ---
 
