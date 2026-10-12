@@ -51,7 +51,6 @@ export class OutboxMessage {
 
   scheduleRetry(now: Date): void {
     this.attempts += 1;
-    // Backoff exponencial simples baseado nas tentativas
     const delayMs = Math.min(1000 * Math.pow(2, this.attempts), 60000);
     this.nextAttemptAt = new Date(now.getTime() + delayMs);
   }

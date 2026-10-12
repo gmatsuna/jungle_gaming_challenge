@@ -18,12 +18,10 @@ export class InboxProcessorService {
   ): Promise<boolean> {
     const em = this.em.fork();
 
-    // Gera um hash simples do payload para controle de integridade/auditoria
     const payloadString = JSON.stringify(payload);
     const payloadHash = crypto.createHash('sha256').update(payloadString).digest('hex');
 
     return await em.transactional(async (txEm) => {
-      // 1. Verifica se a mensagem já foi processada (Idempotência via Inbox com chave composta)
       const existing = await txEm.findOne(InboxMessage, { consumerName, messageId: eventId });
 
       if (existing && existing.isProcessed()) {
@@ -33,10 +31,8 @@ export class InboxProcessorService {
 
       this.logger.log(`[Inbox] Processando nova mensagem ${eventId} do tipo ${eventType} (consumer: ${consumerName})...`);
 
-      // 2. Executa a lógica de negócio associada ao evento
       await handler();
 
-      // 3. Registra ou marca a mensagem no Inbox como processada
       if (existing) {
         existing.markProcessed(new Date());
         txEm.persist(existing);

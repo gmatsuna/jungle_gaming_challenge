@@ -14,7 +14,7 @@ export class Wallet {
   public readonly id!: string;
   public readonly playerId!: string;
   public readonly currency!: string;
-  public balance!: Money; // <--- Agora é uma propriedade pública gerenciada pelo ORM
+  public balance!: Money;
   private _version!: number;
   public readonly createdAt!: Date;
   private _updatedAt!: Date;

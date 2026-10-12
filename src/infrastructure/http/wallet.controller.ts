@@ -45,14 +45,12 @@ export class WalletController {
   ) {
     const limit = limitQuery ? parseInt(limitQuery, 10) : 50;
     
-    // Construção da query com paginação por cursor baseada em data/id decrescente
     const qb = this.em.createQueryBuilder(WalletLedgerEntry, 'e')
       .where({ walletId })
       .orderBy({ createdAt: 'DESC', id: 'DESC' })
       .limit(limit + 1);
 
     if (cursor) {
-      // O cursor pode ser um timestamp base64 ou string simples do createdAt/id
       const decodedCursor = Buffer.from(cursor, 'base64').toString('utf-8');
       const [createdAtStr, id] = decodedCursor.split('_');
       if (createdAtStr && id) {
@@ -64,7 +62,7 @@ export class WalletController {
     let nextCursor: string | null = null;
 
     if (entries.length > limit) {
-      entries.pop(); // Remove o item extra usado para detectar se há próxima página
+      entries.pop();
       const lastItem = entries[entries.length - 1];
       const rawCursor = `${lastItem.createdAt.toISOString()}_${lastItem.id}`;
       nextCursor = Buffer.from(rawCursor).toString('base64');

@@ -15,7 +15,6 @@ export class OutboxRelayerService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    // Roda a cada 5 segundos para processar o outbox
     const pollingIntervalMs = 60000;
     this.intervalId = setInterval(() => {
       this.processOutboxMessages();
@@ -35,13 +34,11 @@ export class OutboxRelayerService implements OnModuleInit, OnModuleDestroy {
     }
     this.isProcessing = true;
 
-    // Criamos um fork do EntityManager para gerenciar o ciclo de vida do background worker isoladamente
     const em = this.em.fork();
 
     try {
       const now = new Date();
 
-      // Busca mensagens pendentes (publishedAt IS NULL) e que já passaram da hora da tentativa (nextAttemptAt)
       const messages = await em.find(
         OutboxMessage,
         {
@@ -63,7 +60,6 @@ export class OutboxRelayerService implements OnModuleInit, OnModuleDestroy {
 
       for (const message of messages) {
         try {
-          // Envia o evento para o SQS
           const messageId = await this.sqsService.sendMessage({
             eventId: message.id,
             aggregateId: message.aggregateId,
@@ -74,13 +70,11 @@ export class OutboxRelayerService implements OnModuleInit, OnModuleDestroy {
 
           this.logger.log(`[Outbox] Mensagem ${message.id} (${message.eventType}) despachada com sucesso para o SQS. SQS MessageId: ${messageId}`);
 
-          // Marca como publicada
           message.markPublished(new Date());
           await em.persistAndFlush(message);
         } catch (error: any) {
           this.logger.error(`[Outbox] Erro ao despachar mensagem ${message.id}: ${error.message}`, error.stack);
           
-          // Agenda retry com backoff exponencial
           message.scheduleRetry(new Date());
           await em.persistAndFlush(message);
         }

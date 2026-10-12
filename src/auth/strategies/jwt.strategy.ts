@@ -27,7 +27,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     };
   }
 
-  // Sobrescreve o método de erro para imprimir no console o motivo exato da falha do token
   fail(info: any) {
     console.error('Falha na validação do JWT:', info);
     super.fail(info);

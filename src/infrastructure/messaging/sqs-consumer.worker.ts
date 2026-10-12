@@ -32,7 +32,6 @@ export class SqsConsumerWorker implements OnModuleInit, OnModuleDestroy {
     const queueName = this.configService.get<string>('SQS_QUEUE_NAME', 'wager-transactions.fifo');
     this.queueUrl = `${endpoint}/000000000000/${queueName}`;
 
-    // Inicia o worker de consumo em segundo plano
     this.isRunning = true;
     this.pollMessages();
     this.logger.log(`[SqsConsumerWorker] Worker iniciado para a fila: ${queueName}`);
@@ -53,7 +52,7 @@ export class SqsConsumerWorker implements OnModuleInit, OnModuleDestroy {
       const command = new ReceiveMessageCommand({
         QueueUrl: this.queueUrl,
         MaxNumberOfMessages: 10,
-        WaitTimeSeconds: 5, // Long polling de 5 segundos
+        WaitTimeSeconds: 5,
         AttributeNames: ['All'],
       });
 
@@ -67,7 +66,6 @@ export class SqsConsumerWorker implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error('[SqsConsumerWorker] Erro ao pesquisar mensagens no SQS:', error);
     } finally {
-      // Agenda o próximo ciclo de polling se ainda estiver rodando
       if (this.isRunning) {
         this.pollTimeout = setTimeout(() => this.pollMessages(), 1000);
       }
@@ -87,20 +85,16 @@ export class SqsConsumerWorker implements OnModuleInit, OnModuleDestroy {
       const eventId = body.eventId || messageId;
       const payload = body.payload || body;
 
-      // Processa a mensagem utilizando o InboxProcessor para garantir idempotência
       const processed = await this.inboxProcessor.processMessage(
         eventId,
         consumerName,
         eventType,
         payload,
         async () => {
-          // Aqui entra a execução real da lógica de negócio assíncrona do evento consumido
           this.logger.log(`[SqsConsumerWorker] Executando handler de negócio para o evento ${eventType} (${eventId})`);
-          // Exemplo: chamar o use-case correspondente ao tipo de evento
         },
       );
 
-      // Se processado ou já processado com sucesso, remove da fila (ACK)
       await this.sqsClient.send(
         new DeleteMessageCommand({
           QueueUrl: this.queueUrl,
@@ -115,7 +109,6 @@ export class SqsConsumerWorker implements OnModuleInit, OnModuleDestroy {
       }
     } catch (error) {
       this.logger.error(`[SqsConsumerWorker] Erro ao processar mensagem ${messageId}:`, error);
-      // Se ocorrer erro na lógica de negócio, a mensagem não é deletada e voltará para a fila após o Visibility Timeout
     }
   }
 }

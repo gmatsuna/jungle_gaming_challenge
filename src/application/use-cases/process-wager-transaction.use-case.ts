@@ -25,7 +25,6 @@ export class ProcessWagerTransactionUseCase {
     const money = Money.from(dto.money);
 
     return this.em.transactional(async (em) => {
-      // 1. Verificação de Idempotência
       const existingTx = await em.findOne(WagerTransaction, { idempotencyKey });
       if (existingTx) {
         if (!existingTx.matchesPayload(payloadHash)) {
@@ -40,7 +39,6 @@ export class ProcessWagerTransactionUseCase {
         };
       }
 
-      // 2. Criar registro inicial da transação (PENDING)
       const tx = WagerTransaction.create({
         id: crypto.randomUUID(),
         providerId: dto.providerId,
@@ -56,7 +54,6 @@ export class ProcessWagerTransactionUseCase {
         referenceExternalTransactionId: dto.referenceExternalTransactionId,
       });
 
-      // 3. Buscar a Wallet
       const wallet = await em.findOne(Wallet, { id: dto.walletId });
       if (!wallet) {
         tx.reject('WALLET_NOT_FOUND');
@@ -67,7 +64,6 @@ export class ProcessWagerTransactionUseCase {
       const balanceBefore = wallet.balance;
 
       try {
-        // 4. Validação de Referência para REFUND / ROLLBACK
         let referenceTx: WagerTransaction | null = null;
         if (tx.requiresReference() && dto.referenceExternalTransactionId) {
           referenceTx = await em.findOne(WagerTransaction, {
@@ -87,7 +83,6 @@ export class ProcessWagerTransactionUseCase {
           }
         }
 
-        // Helper para criar a mensagem de Outbox atômica
         const createOutboxEvent = (eventType: string) => {
           return new OutboxMessage({
             id: crypto.randomUUID(),
@@ -110,7 +105,6 @@ export class ProcessWagerTransactionUseCase {
           });
         };
 
-        // 5. Aplicar regras por TIPO de transação
         if (dto.kind === WagerTransactionKind.Bet) {
           wallet.debit(money);
           const balanceAfter = wallet.balance;
@@ -167,9 +161,6 @@ export class ProcessWagerTransactionUseCase {
           const outbox = createOutboxEvent('WagerRefundProcessed');
           await em.persistAndFlush([tx, wallet, ledger, outbox]);
         } else if (dto.kind === WagerTransactionKind.Rollback) {
-          // O Rollback inverte o efeito da transação referenciada
-          // Se a referência era um BET (débito), o rollback credita.
-          // Se a referência era um WIN ou REFUND (crédito), o rollback debita.
           let direction: LedgerDirection;
 
           if (referenceTx?.kind === WagerTransactionKind.Bet) {

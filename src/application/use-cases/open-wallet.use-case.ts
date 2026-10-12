@@ -30,7 +30,6 @@ export class OpenWalletUseCase {
 
       em.persist(wallet);
 
-      // Se houver saldo inicial maior que zero, criamos a entrada correspondente no ledger
       if (initialMoney.amount > '0') {
         const zeroBalance = Money.zero(initialMoney.currency);
         const ledgerEntry = WalletLedgerEntry.create({

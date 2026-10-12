@@ -4,8 +4,6 @@ import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-
-// Schemas & Use Cases & Controllers
 import { WalletSchema } from './infrastructure/database/schemas/wallet.schema';
 import { WagerTransactionSchema } from './infrastructure/database/schemas/wager-transaction.schema';
 import { WalletLedgerEntrySchema } from './infrastructure/database/schemas/wallet-ledger-entry.schema';
@@ -16,21 +14,17 @@ import { ProcessWagerTransactionUseCase } from './application/use-cases/process-
 import { ReconcileWalletUseCase } from './application/use-cases/reconcile-wallet.use-case';
 import { WalletController } from './infrastructure/http/wallet.controller';
 import { WageringController } from './infrastructure/http/wagering.controller';
-
-// Messaging & Sqs
 import { OutboxRelayerService } from './infrastructure/messaging/outbox-relayer.service';
 import { SqsModule } from './sqs/sqs.module';
 import { InboxProcessorService } from './infrastructure/messaging/inbox-processor.service';
 import { SqsConsumerWorker } from './infrastructure/messaging/sqs-consumer.worker';
-
-// Auth Module
-import { AuthModule } from './auth/auth.module'; // <-- 1. Importar o AuthModule
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     SqsModule,
-    AuthModule, // <-- 2. Adicionar no array de imports
+    AuthModule,
     MikroOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
