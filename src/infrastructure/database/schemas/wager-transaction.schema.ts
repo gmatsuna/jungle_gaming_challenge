@@ -33,8 +33,8 @@ export const WagerTransactionSchema = new EntitySchema<WagerTransaction>({
   },
   indexes: [
     // Índice exclusivo para garantir chave de idempotência nas requisições
-    { name: 'idx_wager_tx_idempotency_key', properties: ['idempotencyKey'], unique: true },
+    { name: 'idx_wager_tx_idempotency_key', properties: ['idempotencyKey'], options: { unique: true } },
     // Índice exclusivo composto para prevenir duplicidade de transações externas por provedor
-    { name: 'idx_wager_tx_provider_ext_id', properties: ['providerId', 'externalTransactionId'], unique: true },
+    { name: 'idx_wager_tx_provider_ext_id', properties: ['providerId', 'externalTransactionId'], options: { unique: true } },
   ],
 });

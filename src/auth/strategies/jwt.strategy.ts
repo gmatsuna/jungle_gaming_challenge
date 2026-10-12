@@ -15,7 +15,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         jwksRequestsPerMinute: 5,
         jwksUri: 'http://localhost:8080/realms/jungle-realm/protocol/openid-connect/certs',
       }),
-      issuer: 'http://localhost:8080/realms/jungle-realm',
       algorithms: ['RS256'],
     });
   }

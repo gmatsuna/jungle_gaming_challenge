@@ -30,7 +30,7 @@ export class Money {
       throw new Error('Currency must be a non-empty string');
     }
 
-    if (typeof amount !== 'string') {
+    if (typeof props.amount !== 'string') {
       throw new Error('Amount must be a decimal string');
     }
 

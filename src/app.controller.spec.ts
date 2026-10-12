@@ -22,7 +22,7 @@ describe('AppController', () => {
   describe('root', () => {
     // Valida se o método getHello retorna a mensagem padrão esperada
     it('should return "Jungle Gaming!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+      expect(appController.getHello()).toBe('Jungle Gaming!');
     });
   });
 });

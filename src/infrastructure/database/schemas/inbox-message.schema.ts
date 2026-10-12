@@ -17,6 +17,6 @@ export const InboxMessageSchema = new EntitySchema<InboxMessage>({
   },
   indexes: [
     // Índice exclusivo composto para garantir que um mesmo consumidor não processe a mesma mensagem duplicada
-    { name: 'idx_inbox_consumer_msg', properties: ['consumerName', 'messageId'], unique: true },
+    { name: 'idx_inbox_consumer_msg', properties: ['consumerName', 'messageId'], options: { unique: true } },
   ],
 });

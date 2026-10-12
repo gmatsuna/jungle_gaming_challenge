@@ -23,6 +23,6 @@ export const WalletLedgerEntrySchema = new EntitySchema<WalletLedgerEntry>({
   },
   indexes: [
     // Índice composto exclusivo garantindo que uma mesma transação não gere lançamentos duplicados na mesma carteira
-    { name: 'idx_ledger_wallet_tx', properties: ['walletId', 'transactionId'], unique: true },
+    { name: 'idx_ledger_wallet_tx', properties: ['walletId', 'transactionId'], options: { unique: true } },
   ],
 });

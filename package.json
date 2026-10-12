@@ -53,6 +53,7 @@
     "@types/node": "^24.0.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^7.0.0",
+    "bun-types": "^1.4.3",
     "jest": "^30.0.0",
     "oxlint": "^1.58.0",
     "oxlint-tsgolint": "^7.0.2001",
