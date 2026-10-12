@@ -3,6 +3,7 @@ import { WalletLedgerEntry, LedgerDirection } from './wallet-ledger-entry.entity
 import { Money } from '../value-objects/money.vo';
 
 describe('WagerTransaction & WalletLedgerEntry Entities', () => {
+  // Testa a criação correta de uma transação de aposta com status inicial Pendente
   it('should create a pending WagerTransaction for BET', () => {
     const tx = WagerTransaction.create({
       id: 'tx-1',
@@ -22,6 +23,7 @@ describe('WagerTransaction & WalletLedgerEntry Entities', () => {
     expect(tx.affectsBalance()).toBe(true);
   });
 
+  // Valida que operações de estorno (Refund) obrigatoriamente exigem o ID da transação de referência
   it('should require reference transaction for REFUND', () => {
     expect(() =>
       WagerTransaction.create({
@@ -40,6 +42,7 @@ describe('WagerTransaction & WalletLedgerEntry Entities', () => {
     ).toThrow('REFERENCE_TRANSACTION_ID_REQUIRED');
   });
 
+  // Testa a criação de uma entrada de ledger perfeitamente balanceada contendo saldos antes e depois válidos
   it('should create a valid balanced WalletLedgerEntry', () => {
     const entry = WalletLedgerEntry.create({
       id: 'l-1',
@@ -54,6 +57,7 @@ describe('WagerTransaction & WalletLedgerEntry Entities', () => {
     expect(entry.isBalanced()).toBe(true);
   });
 
+  // Garante que o domínio rejeita lançamentos no ledger caso haja divergência matemática nos saldos
   it('should throw error if WalletLedgerEntry arithmetic is wrong', () => {
     expect(() =>
       WalletLedgerEntry.create({

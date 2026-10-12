@@ -19,12 +19,17 @@ export interface ProcessTransactionResult {
 export class ProcessWagerTransactionUseCase {
   constructor(private readonly em: EntityManager) {}
 
+  /**
+   * Processa transações de apostas de forma atômica, garantindo idempotência,
+   * integridade financeira, lançamentos no ledger e eventos para o Outbox.
+   */
   async execute(dto: SubmitWagerTransactionDto): Promise<ProcessTransactionResult> {
     const idempotencyKey = dto.idempotencyKey || `${dto.providerId}:${dto.externalTransactionId}`;
     const payloadHash = this.generateCanonicalHash(dto);
     const money = Money.from(dto.money);
 
     return this.em.transactional(async (em) => {
+      // 1. Verificação de Idempotência: Se a transação já foi processada, valida o payload
       const existingTx = await em.findOne(WagerTransaction, { idempotencyKey });
       if (existingTx) {
         if (!existingTx.matchesPayload(payloadHash)) {
@@ -39,6 +44,7 @@ export class ProcessWagerTransactionUseCase {
         };
       }
 
+      // 2. Criação da entidade de transação de aposta
       const tx = WagerTransaction.create({
         id: crypto.randomUUID(),
         providerId: dto.providerId,
@@ -54,6 +60,7 @@ export class ProcessWagerTransactionUseCase {
         referenceExternalTransactionId: dto.referenceExternalTransactionId,
       });
 
+      // 3. Validação da existência da carteira do jogador
       const wallet = await em.findOne(Wallet, { id: dto.walletId });
       if (!wallet) {
         tx.reject('WALLET_NOT_FOUND');
@@ -65,6 +72,7 @@ export class ProcessWagerTransactionUseCase {
 
       try {
         let referenceTx: WagerTransaction | null = null;
+        // 4. Validação de transações dependentes (ex: WIN, REFUND, ROLLBACK exigem transação original)
         if (tx.requiresReference() && dto.referenceExternalTransactionId) {
           referenceTx = await em.findOne(WagerTransaction, {
             providerId: dto.providerId,
@@ -83,6 +91,7 @@ export class ProcessWagerTransactionUseCase {
           }
         }
 
+        // Função auxiliar para gerar eventos de integração no padrão Outbox
         const createOutboxEvent = (eventType: string) => {
           return new OutboxMessage({
             id: crypto.randomUUID(),
@@ -105,6 +114,7 @@ export class ProcessWagerTransactionUseCase {
           });
         };
 
+        // 5. Execução do fluxo de acordo com o tipo da transação (BET, WIN, LOSS, REFUND, ROLLBACK)
         if (dto.kind === WagerTransactionKind.Bet) {
           wallet.debit(money);
           const balanceAfter = wallet.balance;
@@ -197,6 +207,7 @@ export class ProcessWagerTransactionUseCase {
           idempotentReplay: false,
         };
       } catch (error: any) {
+        // Tratamento específico para rejeição por saldo insuficiente
         if (error.message === 'INSUFFICIENT_FUNDS') {
           tx.reject('INSUFFICIENT_FUNDS');
           await em.persistAndFlush(tx);
@@ -207,6 +218,9 @@ export class ProcessWagerTransactionUseCase {
     });
   }
 
+  /**
+   * Gera um hash SHA-256 canônico do payload para validação de conflito de idempotência.
+   */
   private generateCanonicalHash(dto: SubmitWagerTransactionDto): string {
     const canonicalObj = {
       externalTransactionId: dto.externalTransactionId,

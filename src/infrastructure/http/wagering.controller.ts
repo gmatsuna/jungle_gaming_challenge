@@ -5,6 +5,10 @@ import { SubmitWagerTransactionDto } from '../../application/dtos/submit-wager-t
 import { WagerTransaction } from '../../domain/entities/wager-transaction.entity';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+/**
+ * Controller responsável pelos endpoints de apostas (Wagering), protegido por autenticação JWT,
+ * gerenciando a submissão de transações e consultas por ID interno ou de provedor.
+ */
 @Controller('wagering')
 @UseGuards(JwtAuthGuard)
 export class WageringController {
@@ -13,6 +17,9 @@ export class WageringController {
     private readonly em: EntityManager,
   ) {}
 
+  /**
+   * Endpoint para submeter uma nova transação de aposta, capturando a chave de idempotência do cabeçalho.
+   */
   @Post('transactions')
   async submitTransaction(
     @Body() body: SubmitWagerTransactionDto,
@@ -21,12 +28,16 @@ export class WageringController {
     if (!body || Object.keys(body).length === 0) {
       throw new BadRequestException('REQUEST_BODY_MISSING_OR_INVALID_JSON');
     }
+    // Injeta a chave de idempotência do cabeçalho HTTP no DTO se fornecida
     if (idempotencyKey) {
       body.idempotencyKey = idempotencyKey;
     }
     return this.processWagerTransactionUseCase.execute(body);
   }
 
+  /**
+   * Consulta uma transação de aposta pelo seu ID interno.
+   */
   @Get('transactions/:transactionId')
   async getTransactionById(@Param('transactionId') transactionId: string) {
     const tx = await this.em.findOne(WagerTransaction, { id: transactionId });
@@ -36,6 +47,9 @@ export class WageringController {
     return this.formatTransactionResponse(tx);
   }
 
+  /**
+   * Consulta uma transação de aposta utilizando a combinação de ID do provedor e ID externo da transação.
+   */
   @Get('/providers/:providerId/wagering/transactions/:externalTransactionId')
   async getTransactionByProviderId(
     @Param('providerId') providerId: string,
@@ -48,6 +62,9 @@ export class WageringController {
     return this.formatTransactionResponse(tx);
   }
 
+  /**
+   * Formata o objeto da transação para um payload padronizado de resposta JSON.
+   */
   private formatTransactionResponse(tx: WagerTransaction) {
     return {
       id: tx.id,

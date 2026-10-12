@@ -1,5 +1,6 @@
 import { Money } from '../value-objects/money.vo';
 
+// Tipos suportados de transações de apostas
 export enum WagerTransactionKind {
   Opening = 'OPENING',
   Bet = 'BET',
@@ -9,6 +10,7 @@ export enum WagerTransactionKind {
   Rollback = 'ROLLBACK',
 }
 
+// Estados possíveis no ciclo de vida de uma transação
 export enum WagerTransactionStatus {
   Pending = 'PENDING',
   PendingReference = 'PENDING_REFERENCE',
@@ -40,6 +42,10 @@ export interface WagerTransactionState extends CreateWagerTransactionProps {
   processedAt?: Date;
 }
 
+/**
+ * Entidade de domínio responsável por gerenciar o ciclo de vida, as invariantes
+ * e as regras de negócio de uma transação de aposta.
+ */
 export class WagerTransaction {
   private constructor(
     public readonly id: string,
@@ -61,11 +67,16 @@ export class WagerTransaction {
     private _processedAt?: Date,
   ) {}
 
+  /**
+   * Fábrica para criar uma nova transação aplicando as regras e invariantes de domínio.
+   */
   public static create(props: CreateWagerTransactionProps): WagerTransaction {
+    // Transações do tipo OPENING não podem ser submetidas externamente via API
     if (props.kind === WagerTransactionKind.Opening) {
       throw new Error('OPENING_TRANSACTION_CANNOT_BE_SUBMITTED_EXTERNALLY');
     }
 
+    // REFUND e ROLLBACK exigem obrigatoriamente uma transação de referência
     if (
       (props.kind === WagerTransactionKind.Refund || props.kind === WagerTransactionKind.Rollback) &&
       !props.referenceExternalTransactionId
@@ -91,6 +102,9 @@ export class WagerTransaction {
     );
   }
 
+  /**
+   * Rehidrata a entidade a partir do estado persistido no banco de dados.
+   */
   public static rehydrate(state: WagerTransactionState): WagerTransaction {
     return new WagerTransaction(
       state.id,
@@ -129,6 +143,9 @@ export class WagerTransaction {
     return this._processedAt;
   }
 
+  /**
+   * Marca a transação como processada com sucesso.
+   */
   public markProcessed(referenceTransactionId?: string, at = new Date()): void {
     this.assertNotTerminal();
     this._status = WagerTransactionStatus.Processed;
@@ -136,23 +153,35 @@ export class WagerTransaction {
     this._processedAt = at;
   }
 
+  /**
+   * Coloca a transação em estado de espera por sua transação de referência.
+   */
   public markPendingReference(): void {
     this.assertNotTerminal();
     this._status = WagerTransactionStatus.PendingReference;
   }
 
+  /**
+   * Rejeita a transação registrando o código de erro/falha correspondente.
+   */
   public reject(code: string): void {
     this.assertNotTerminal();
     this._status = WagerTransactionStatus.Rejected;
     this._failureCode = code;
   }
 
+  /**
+   * Marca a transação como falha.
+   */
   public fail(code: string): void {
     this.assertNotTerminal();
     this._status = WagerTransactionStatus.Failed;
     this._failureCode = code;
   }
 
+  /**
+   * Verifica se a transação já atingiu um estado final.
+   */
   public isTerminal(): boolean {
     return (
       this._status === WagerTransactionStatus.Processed ||
@@ -161,18 +190,30 @@ export class WagerTransaction {
     );
   }
 
+  /**
+   * Indica se a transação altera o saldo da carteira (Losses não alteram diretamente).
+   */
   public affectsBalance(): boolean {
     return this.kind !== WagerTransactionKind.Loss;
   }
 
+  /**
+   * Indica se o tipo de transação requer uma transação de referência prévia.
+   */
   public requiresReference(): boolean {
     return this.kind === WagerTransactionKind.Refund || this.kind === WagerTransactionKind.Rollback;
   }
 
+  /**
+   * Valida se o hash do payload enviado coincide com o registrado (prevenção de conflito de idempotência).
+   */
   public matchesPayload(payloadHash: string): boolean {
     return this.payloadHash === payloadHash;
   }
 
+  /**
+   * Garante que transações em estados terminais não sofram novas alterações de estado.
+   */
   private assertNotTerminal(): void {
     if (this.isTerminal()) {
       throw new Error(`Cannot transition terminal transaction in status ${this._status}`);

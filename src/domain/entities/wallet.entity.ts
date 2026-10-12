@@ -10,6 +10,10 @@ export interface WalletState {
   updatedAt: Date;
 }
 
+/**
+ * Entidade de domínio central da carteira do jogador, gerenciando o saldo atual,
+ * o controle de concorrência por versão e a integridade de operações financeiras.
+ */
 export class Wallet {
   public readonly id!: string;
   public readonly playerId!: string;
@@ -42,6 +46,9 @@ export class Wallet {
     }
   }
 
+  /**
+   * Fábrica para abrir uma nova carteira com saldo inicial e versão inicial 1.
+   */
   public static open(props: { id: string; playerId: string; initialBalance: Money }): Wallet {
     const now = new Date();
     return new Wallet(
@@ -55,6 +62,9 @@ export class Wallet {
     );
   }
 
+  /**
+   * Rehidrata a entidade a partir do estado persistido no banco de dados.
+   */
   public static rehydrate(state: WalletState): Wallet {
     return new Wallet(
       state.id,
@@ -75,6 +85,9 @@ export class Wallet {
     return this._updatedAt;
   }
 
+  /**
+   * Adiciona créditos à carteira, incrementando a versão e o timestamp de atualização.
+   */
   public credit(amount: Money): void {
     this.assertSameCurrency(amount);
     this.balance = this.balance.add(amount);
@@ -82,6 +95,9 @@ export class Wallet {
     this._updatedAt = new Date();
   }
 
+  /**
+   * Debita valores da carteira validando a disponibilidade de fundos e atualizando versão.
+   */
   public debit(amount: Money): void {
     this.assertSameCurrency(amount);
     
@@ -93,6 +109,9 @@ export class Wallet {
     this._updatedAt = new Date();
   }
 
+  /**
+   * Garante que a operação financeira utiliza exatamente a mesma moeda da carteira.
+   */
   private assertSameCurrency(money: Money): void {
     if (this.currency !== money.currency) {
       throw new Error(`Currency mismatch: Wallet currency is ${this.currency}, but operation is ${money.currency}`);

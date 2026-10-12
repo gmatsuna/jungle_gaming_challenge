@@ -3,19 +3,27 @@ import { ConfigService } from '@nestjs/config';
 import { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
 import { InboxProcessorService } from './inbox-processor.service';
 
+/**
+ * Worker responsável por consumir mensagens de uma fila Amazon SQS em background,
+ * delegando o processamento transacional e idempotente ao InboxProcessorService e
+ * removendo as mensagens tratadas com sucesso da fila.
+ */
 @Injectable()
 export class SqsConsumerWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SqsConsumerWorker.name);
-  private sqsClient: SQSClient;
-  private queueUrl: string;
+  private sqsClient!: SQSClient;
+  private queueUrl!: string;
   private isRunning = false;
-  private pollTimeout: NodeJS.Timeout;
+  private pollTimeout!: NodeJS.Timeout;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly inboxProcessor: InboxProcessorService,
   ) {}
 
+  /**
+   * Inicializa o cliente AWS SQS e dispara o ciclo de escuta assim que o módulo é carregado.
+   */
   onModuleInit() {
     const endpoint = this.configService.get<string>('AWS_ENDPOINT', 'http://localhost:4566');
     const region = this.configService.get<string>('AWS_REGION', 'us-east-1');
@@ -37,6 +45,9 @@ export class SqsConsumerWorker implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`[SqsConsumerWorker] Worker iniciado para a fila: ${queueName}`);
   }
 
+  /**
+   * Encerra o worker de forma limpa, limpando os timers de polling pendentes.
+   */
   onModuleDestroy() {
     this.isRunning = false;
     if (this.pollTimeout) {
@@ -45,6 +56,9 @@ export class SqsConsumerWorker implements OnModuleInit, OnModuleDestroy {
     this.logger.log('[SqsConsumerWorker] Worker finalizado.');
   }
 
+  /**
+   * Executa o polling contínuo de mensagens na fila SQS.
+   */
   private async pollMessages() {
     if (!this.isRunning) return;
 
@@ -72,6 +86,9 @@ export class SqsConsumerWorker implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Processa uma mensagem individual recebida, garantindo idempotência via Inbox e deletando-a do SQS.
+   */
   private async handleMessage(message: any) {
     const messageId = message.MessageId;
     const receiptHandle = message.ReceiptHandle;
@@ -85,6 +102,7 @@ export class SqsConsumerWorker implements OnModuleInit, OnModuleDestroy {
       const eventId = body.eventId || messageId;
       const payload = body.payload || body;
 
+      // Delega o processamento para o serviço de Inbox para garantir tratamento exatamente-uma-vez
       const processed = await this.inboxProcessor.processMessage(
         eventId,
         consumerName,
@@ -95,6 +113,7 @@ export class SqsConsumerWorker implements OnModuleInit, OnModuleDestroy {
         },
       );
 
+      // Remove a mensagem da fila SQS após o processamento bem-sucedido ou verificação de duplicidade
       await this.sqsClient.send(
         new DeleteMessageCommand({
           QueueUrl: this.queueUrl,

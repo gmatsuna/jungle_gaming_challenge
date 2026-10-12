@@ -17,16 +17,23 @@ export interface ReconciliationResult {
 export class ReconcileWalletUseCase {
   constructor(private readonly em: EntityManager) {}
 
+  /**
+   * Executa a reconciliação financeira da carteira, validando se o saldo armazenado
+   * confere exatamente com a soma matemática acumulada de todos os lançamentos do ledger.
+   */
   async execute(walletId: string): Promise<ReconciliationResult> {
+    // 1. Busca a carteira alvo
     const wallet = await this.em.findOne(Wallet, { id: walletId });
     if (!wallet) {
       throw new Error('WALLET_NOT_FOUND');
     }
 
+    // 2. Busca todas as entradas do ledger ordenadas cronologicamente
     const entries = await this.em.find(WalletLedgerEntry, { walletId }, { orderBy: { createdAt: 'ASC' } });
 
     let calculatedMoney = Money.zero(wallet.currency);
 
+    // 3. Reconstrói o saldo acumulado iterando sobre cada lançamento do ledger
     for (const entry of entries) {
       if (entry.direction === LedgerDirection.Credit) {
         calculatedMoney = calculatedMoney.add(entry.money);
@@ -39,6 +46,7 @@ export class ReconcileWalletUseCase {
     const difference = storedBalance.subtract(calculatedMoney);
     const consistent = storedBalance.equals(calculatedMoney);
 
+    // 4. Emite alerta crítico caso seja detectada divergência contábil
     if (!consistent) {
       console.warn(`[RECONCILIATION_MISMATCH] Wallet ${walletId} has divergence! Stored: ${storedBalance.toString()}, Calculated: ${calculatedMoney.toString()}`);
     }

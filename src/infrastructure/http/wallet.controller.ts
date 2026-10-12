@@ -5,6 +5,10 @@ import { Wallet } from '../../domain/entities/wallet.entity';
 import { WalletLedgerEntry } from '../../domain/entities/wallet-ledger-entry.entity';
 import { ReconcileWalletUseCase } from '../../application/use-cases/reconcile-wallet.use-case';
 
+/**
+ * Controller responsável pelos endpoints de gerenciamento de carteiras, consulta de saldos,
+ * paginação de extratos (ledger) via cursor e execução de rotinas de conciliação financeira.
+ */
 @Controller('wallets')
 export class WalletController {
   constructor(
@@ -13,6 +17,9 @@ export class WalletController {
     private readonly em: EntityManager,
   ) {}
 
+  /**
+   * Endpoint para abrir uma nova carteira associada a um jogador com saldo inicial.
+   */
   @Post()
   async openWallet(
     @Body() body: { playerId: string; initialBalance: { amount: string; currency: string } },
@@ -20,6 +27,9 @@ export class WalletController {
     return this.openWalletUseCase.execute(body);
   }
 
+  /**
+   * Consulta os detalhes e o saldo atual de uma carteira específica pelo seu ID.
+   */
   @Get(':walletId')
   async getWallet(@Param('walletId') walletId: string) {
     const wallet = await this.em.findOne(Wallet, { id: walletId });
@@ -37,6 +47,9 @@ export class WalletController {
     };
   }
 
+  /**
+   * Consulta o extrato de lançamentos (ledger) da carteira utilizando paginação baseada em cursor.
+   */
   @Get(':walletId/ledger')
   async getLedger(
     @Param('walletId') walletId: string,
@@ -45,11 +58,13 @@ export class WalletController {
   ) {
     const limit = limitQuery ? parseInt(limitQuery, 10) : 50;
     
+    // Constrói a consulta buscando um item a mais que o limite para determinar a existência de próxima página
     const qb = this.em.createQueryBuilder(WalletLedgerEntry, 'e')
       .where({ walletId })
       .orderBy({ createdAt: 'DESC', id: 'DESC' })
       .limit(limit + 1);
 
+    // Aplica o cursor decodificado em Base64 caso fornecido na requisição
     if (cursor) {
       const decodedCursor = Buffer.from(cursor, 'base64').toString('utf-8');
       const [createdAtStr, id] = decodedCursor.split('_');
@@ -61,6 +76,7 @@ export class WalletController {
     const entries = await qb.getResult();
     let nextCursor: string | null = null;
 
+    // Se houver mais registros que o limite, remove o excedente e gera o próximo cursor
     if (entries.length > limit) {
       entries.pop();
       const lastItem = entries[entries.length - 1];
@@ -86,6 +102,9 @@ export class WalletController {
     };
   }
 
+  /**
+   * Aciona o caso de uso de conciliação para validar a integridade dos saldos e transações da carteira.
+   */
   @Post(':walletId/reconciliation')
   async reconcileWallet(@Param('walletId') walletId: string) {
     try {

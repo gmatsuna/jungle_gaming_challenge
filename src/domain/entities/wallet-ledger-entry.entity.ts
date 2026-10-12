@@ -1,5 +1,6 @@
 import { Money } from '../value-objects/money.vo';
 
+// Direção do lançamento no extrato/ledger
 export enum LedgerDirection {
   Debit = 'DEBIT',
   Credit = 'CREDIT',
@@ -19,6 +20,10 @@ export interface LedgerEntryState extends CreateLedgerEntryProps {
   createdAt: Date;
 }
 
+/**
+ * Entidade de domínio que representa uma entrada imutável no ledger da carteira,
+ * garantindo rastreabilidade financeira completa e prova matemática de saldo.
+ */
 export class WalletLedgerEntry {
   private constructor(
     public readonly id: string,
@@ -31,6 +36,9 @@ export class WalletLedgerEntry {
     public readonly createdAt: Date,
   ) {}
 
+  /**
+   * Cria uma nova entrada no ledger validando obrigatoriamente a integridade aritmética.
+   */
   public static create(props: CreateLedgerEntryProps): WalletLedgerEntry {
     const entry = new WalletLedgerEntry(
       props.id,
@@ -43,6 +51,7 @@ export class WalletLedgerEntry {
       new Date(),
     );
 
+    // Rejeita a criação caso os saldos não fechem matematicamente
     if (!entry.isBalanced()) {
       throw new Error('INVALID_LEDGER_ARITHMETIC');
     }
@@ -50,6 +59,9 @@ export class WalletLedgerEntry {
     return entry;
   }
 
+  /**
+   * Rehidrata a entidade a partir do estado persistido no banco de dados.
+   */
   public static rehydrate(state: LedgerEntryState): WalletLedgerEntry {
     return new WalletLedgerEntry(
       state.id,
@@ -63,6 +75,10 @@ export class WalletLedgerEntry {
     );
   }
 
+  /**
+   * Valida se a aritmética do lançamento está perfeitamente balanceada
+   * (Débito subtrai do saldo anterior; Crédito soma ao saldo anterior).
+   */
   public isBalanced(): boolean {
     if (this.direction === LedgerDirection.Debit) {
       const expectedAfter = this.balanceBefore.subtract(this.money);

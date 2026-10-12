@@ -2,6 +2,7 @@ import { Wallet } from './wallet.entity';
 import { Money } from '../value-objects/money.vo';
 
 describe('Wallet Entity', () => {
+  // Testa a abertura correta de uma nova carteira, validando o saldo inicial e versão inicial
   it('should open a new wallet with initial balance and version 1', () => {
     const initialBalance = Money.from({ amount: '100.00', currency: 'BRL' });
     const wallet = Wallet.open({
@@ -14,6 +15,7 @@ describe('Wallet Entity', () => {
     expect(wallet.version).toBe(1);
   });
 
+  // Testa a operação de crédito, verificando a atualização correta do saldo e o incremento de versão
   it('should credit and increment version', () => {
     const wallet = Wallet.open({
       id: 'w-1',
@@ -27,6 +29,7 @@ describe('Wallet Entity', () => {
     expect(wallet.version).toBe(2);
   });
 
+  // Testa a operação de débito, verificando a redução correta do saldo e o incremento de versão
   it('should debit and increment version', () => {
     const wallet = Wallet.open({
       id: 'w-1',
@@ -40,6 +43,7 @@ describe('Wallet Entity', () => {
     expect(wallet.version).toBe(2);
   });
 
+  // Garante que a carteira rejeita débitos superiores ao saldo disponível lançando erro de fundos insuficientes
   it('should throw error when debit exceeds balance', () => {
     const wallet = Wallet.open({
       id: 'w-1',

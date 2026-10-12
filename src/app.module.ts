@@ -20,11 +20,18 @@ import { InboxProcessorService } from './infrastructure/messaging/inbox-processo
 import { SqsConsumerWorker } from './infrastructure/messaging/sqs-consumer.worker';
 import { AuthModule } from './auth/auth.module';
 
+/**
+ * Módulo raiz da aplicação NestJS, responsável por orquestrar a importação de configurações,
+ * conexão com o banco de dados relacional (MikroORM), módulos de mensageria, segurança,
+ * além de registrar controllers, casos de uso e serviços de infraestrutura.
+ */
 @Module({
   imports: [
+    // Carrega e disponibiliza as variáveis de ambiente globalmente na aplicação
     ConfigModule.forRoot({ isGlobal: true }),
     SqsModule,
     AuthModule,
+    // Configuração assíncrona do ORM utilizando as variáveis de ambiente para conexão com o PostgreSQL
     MikroOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -39,6 +46,7 @@ import { AuthModule } from './auth/auth.module';
         debug: true,
       }),
     }),
+    // Registra os schemas de entidades para injeção de repositórios nos contextos da aplicação
     MikroOrmModule.forFeature([WalletSchema, WagerTransactionSchema, WalletLedgerEntrySchema, OutboxMessageSchema, InboxMessageSchema]),
   ],
   controllers: [AppController, WalletController, WageringController],
